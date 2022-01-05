@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="ac06c9a6-1f89-4ebb-8883-16a8b71f1139" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="dbb6f323-b8f5-493a-b19f-cb5a1e3bd3ae" >
+		<mongo:connection-string-connection connectionString="mongodb+srv://m001-student:m001-mongodb-basics@sandbox.39zm8.mongodb.net/student" />
+	</mongo:config>
+	<flow name="student-data-apiFlow" doc:id="759bf2ff-c7fa-4350-85b8-18d402624c62" >
+		<http:listener doc:name="Listener" doc:id="7ec396bb-9a92-4d78-93c7-c7b84c24c7ed" config-ref="HTTP_Listener_config" path="/student " allowedMethods="GET,POST"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="dc9f8771-cb6f-405a-9ddd-bc5fb82d6afb" variableName="data"/>
+		<choice doc:name="Choice" doc:id="0e0b6191-7f13-4a88-aa0d-b525d0f4db57" >
+			<when expression='#[message.attributes.method == "POST"]'>
+				<flow-ref doc:name="Flow Reference" doc:id="6ca9c4a0-fd8f-4ed2-8770-5551d47881ab" name="saveDataToMongodb"/>
+			</when>
+			<otherwise >
+				<flow-ref doc:name="Flow Reference" doc:id="3e5e30ca-544c-47e8-9192-c10348b9cc85" name="getDatafromMongodb"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="getDatafromMongodb" doc:id="04681253-ef69-43cb-9a73-5be078882518">
+		<mongo:find-documents doc:name="Find documents" doc:id="b2e5fc8e-517b-49af-acd0-eb7f943dcc3a" config-ref="MongoDB_Config" fields="," collectionName='#["Data"]'>
+		</mongo:find-documents>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="0e703a09-32ca-4463-a531-58350fc9f81a" variableName="details"/>
+		<ee:transform doc:name="Transform Message" doc:id="8572dad0-4fdb-4a4e-9215-9187a485107a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+---
+
+payload map(obj,i)->{
+	"id":payload[i]."_id",
+	"student":
+	{
+		"id":payload[i].studentId,
+		"name":payload[i].studentName,
+		"address":payload[i].studentAddress,
+		"age":payload[i].studentAge
+	},
+	"department":
+	{
+		"branch":payload[i].branch,
+		"batch":payload[i].batch,
+		"owner":payload[i].batchOwner
+	}
+
+}	
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="saveDataToMongodb" doc:id="820b2080-e06f-48e1-9ef6-fb3c387e07e3" >
+		<mongo:insert-document doc:name="Insert document" doc:id="d9f4567e-6977-4e6a-8867-a8bded9d923a" config-ref="MongoDB_Config" collectionName='#["Data"]'>
+
+				</mongo:insert-document>
+		<ee:transform doc:name="Transform Message" doc:id="ed01d511-8c9a-4c00-b22d-42b77522c0ff" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{"Post":"executed"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>
